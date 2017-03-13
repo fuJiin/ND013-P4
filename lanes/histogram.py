@@ -211,7 +211,7 @@ class SlidingWindow(object):
     def center_offset(self, x_ft_per_px=12/800):
         """Find x offset of car in relation to the lane"""
         frame_center = self.img.shape[1] / 2
-        lane_center = (self.right_x - self.left_x) / 2
+        lane_center = (self.right_x[-1] - self.left_x[-1]) / 2
         return (frame_center - lane_center) * x_ft_per_px
 
     def _extract_non_zeroes(self, img):
