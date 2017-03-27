@@ -7,11 +7,13 @@ class SlidingWindow(object):
     """Sliding window search to find lanes"""
 
     def __init__(self, img,
-                 windows=9, margin=100, min_pix=50,
+                 windows=9, hood_height=50,
+                 margin=100, min_pix=50,
                  prev_left_fit=None, prev_right_fit=None,
                  collector=None):
         self.img = img
         self.windows = windows
+        self.hood_height = 50
         self.margin = margin
         self.min_pix = min_pix
 
@@ -25,7 +27,7 @@ class SlidingWindow(object):
         Find left and right lane pixel indices
         from scratch using sliding windows
         """
-        hgram = histogram(self.img)
+        hgram = histogram(self.img, hood_height=self.hood_height)
 
         mid_pt = np.int(hgram.shape[0] / 2)
         left_base = np.argmax(hgram[:mid_pt])
@@ -39,9 +41,12 @@ class SlidingWindow(object):
         left_lane_inds = []
         right_lane_inds = []
 
+        # Account for hood height in initial search
+        y_max = self.img.shape[0] - self.hood_height
+
         for window in range(self.windows):
-            win_y_low = self.img.shape[0] - (window + 1) * window_height
-            win_y_high = self.img.shape[0] - (window * window_height)
+            win_y_low = y_max - (window + 1) * window_height
+            win_y_high = y_max - (window * window_height)
 
             win_xleft_low = left_curr - self.margin
             win_xleft_high = left_curr + self.margin
@@ -210,9 +215,12 @@ class SlidingWindow(object):
 
     def center_offset(self, x_ft_per_px=12/800):
         """Find x offset of car in relation to the lane"""
-        frame_center = self.img.shape[1] / 2
-        lane_center = (self.right_x[-1] - self.left_x[-1]) / 2
-        return (frame_center - lane_center) * x_ft_per_px
+        return center_offset(
+            self.img,
+            left_x=self.left_x,
+            right_x=self.right_x,
+            x_ft_per_px=x_ft_per_px
+        )
 
     def _extract_non_zeroes(self, img):
         """Extract non_zero_x, non_zero_y from image"""
@@ -220,6 +228,14 @@ class SlidingWindow(object):
         return np.array(non_zero[1]), np.array(non_zero[0])
 
 
-def histogram(img):
+def histogram(img, hood_height):
     """Histogram of pixels in an image"""
-    return np.sum(img[int(img.shape[0]/2):,:], axis=0)
+    y_max = img.shape[0] - hood_height
+    return np.sum(img[int(img.shape[0]/2):y_max,:], axis=0)
+
+
+def center_offset(img, left_x, right_x, x_ft_per_px=12/800):
+    """Find x offset of car in relation to the lane"""
+    frame_center = img.shape[1] / 2
+    lane_center = (right_x[-1] - left_x[-1]) / 2
+    return (frame_center - lane_center) * x_ft_per_px
