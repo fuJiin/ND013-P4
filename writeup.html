@@ -53529,7 +53529,8 @@ SUVORK5CYII=
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h2 id="Discussion">Discussion<a class="anchor-link" href="#Discussion">&#182;</a></h2>
+<h2 id="Discussion">Discussion<a class="anchor-link" href="#Discussion">&#182;</a></h2><h3 id="Issues">Issues<a class="anchor-link" href="#Issues">&#182;</a></h3><p>Below are some of the biggest issues I faced when building the pipeline.</p>
+
 </div>
 </div>
 </div>
@@ -53538,12 +53539,68 @@ SUVORK5CYII=
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>The pipeline does well for the most part, but there are two main areas we can improve on.</p>
+<p><strong>Lighting Issues</strong></p>
+<p>By far the biggest challenges was were when lighting conditions changed, or the color of the road itself changed.</p>
+<p>I had to find the right balance between using color space filters which were generally more accurate, and adding gradient filters, which tended to be noisy but more resilient to lighting/color changes. Using the two of three votes mechanism, where two out of the three filters (color, magnitude, and direction) was necessary for the combined filter to have a positive value, seemed to work well here.</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p><strong>Noise from Car Hood</strong></p>
+<p>Another issue I found was noise introduced by the car hood in the images. The histogram sliding window method generally performed well in finding the lanes. But in frames where the filters failed to find enough positive pixels, the pixels from the hood would overwhelm the signals and result in weird results.</p>
+<p>To account for this, I added a 50px margin on the bottom of the frame for so the sliding window skips the car hood.</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p><strong>Outlier Frames</strong></p>
+<p>Even with the voting mechanism and removing noise from the hood, there were still outlier frames that would cause issues in the video.</p>
+<p>To handle these frames, I created a <code>Lines</code> object in <code>run.py</code> to collect lane lines and detect outliers. At every frame, the object would check the absolute mean difference between the new lane <code>x</code> points and historical lane <code>x</code> points, given higher weights to the more recent frames. The total differences is averaged across all historical points and compared to a given threshold to determine whether to use the new lane line or not. If the new lines pass the threshold, it's rendered onto the frame and added to the history. Otherwise the last valid set of lines are used on the frame instead.</p>
+<p>Despite losing accuracy for the outlier frames, this solution seemed to stabilize the detected lanes and helped avoid any catastrophic errors.</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h3 id="Future-Improvements">Future Improvements<a class="anchor-link" href="#Future-Improvements">&#182;</a></h3><p>In the future, these are areas of the pipeline I'd try to improve on.</p>
 <p><strong>1) Lane length is short</strong></p>
 <p>I tried moving my source and destination points higher up (lower <code>Y</code>) in the perspective transform, but had a hard time getting it right. The transformations often warped beyond recognition if I tried moving up higher, likely because the <code>X</code> values start to converge in the source points.</p>
+<p>I'm pretty sure there are transform source/destination points that would allow us capture more of the road. I'd spend more time fiddling with the parameters in the future.</p>
 <p><strong>2) Lanes lines still jitter</strong></p>
 <p>This is especially true of the right lane, and is an issue I had even in Problem 1 (Basic Lane Finding).</p>
 <p>To resolve this, I'd probably try to use an average or exponential smoothing to counteract the jitter.</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h3 id="Other-Potential-Failures">Other Potential Failures<a class="anchor-link" href="#Other-Potential-Failures">&#182;</a></h3><p>Some potential failure cases for the pipeline:</p>
+<p><strong>1) Rain/hail/snow conditions</strong></p>
+<p>I don't think the pipeline is currently set up to handle rail, hail, or snow. The added noise may be too significant to overcome, and could result in some weird lane lines.</p>
+<p><strong>2) Prolonged brightness</strong></p>
+<p>The pipeline currently performs poorly in highly lit conditions where the lane lines are hard to distinguish from the rest of the road. It currently gets around this by throwing out outlier lane lines, using a max history of 5 frames. But if the brightness lasts more than that, the pipeline may not be able to pick up the new lane lines again since all subsequent detections will look like "outliers".</p>
+<p>We'd need to fix the actual detection filters to account for this.</p>
+<p><strong>3) Objects directy in front</strong></p>
+<p>Cars, bikes, or any other objects that may jump in front of the camera or cross over a lane will likely break this pipeline. Like (2) above, it's likely the outlier detection could stabilize the pipeline enough for a few frames. But if the object stays in front of the camera for a long time, the histogram would likely be messed up and detection would be off.</p>
+<p>To account for this I would use the starting lane position of the previous frame as a starting point for the current frame, rather than using the histogram to cold-start every frame. We can also apply a penalty to positive pixels closer to the center of the frame to make the algorithm more likely to detect lane lines on the outside.</p>
 
 </div>
 </div>
