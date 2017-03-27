@@ -2,6 +2,30 @@ import cv2
 import numpy as np
 
 
+def rgb_select(img, ch_filter=0, thresh=(0, 255)):
+    """Select channels within given threshold in RGB space"""
+    hls = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    s_channel = hls[:,:,ch_filter]
+
+    binary_output = np.zeros_like(s_channel)
+    binary_output[(s_channel > thresh[0]) &
+                  (s_channel <= thresh[1])] = 1
+
+    return binary_output
+
+
+def hsv_select(img, ch_filter=2, thresh=(0, 255)):
+    """Select channels within given threshold in HSV space"""
+    hls = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    s_channel = hls[:,:,ch_filter]
+
+    binary_output = np.zeros_like(s_channel)
+    binary_output[(s_channel > thresh[0]) &
+                  (s_channel <= thresh[1])] = 1
+
+    return binary_output
+
+
 def hls_select(img, ch_filter=2, thresh=(0, 255)):
     """Select channels within given threshold in HLS space"""
     hls = cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
